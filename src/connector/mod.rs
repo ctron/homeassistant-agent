@@ -3,13 +3,13 @@ mod options;
 
 use crate::connector::Error;
 use crate::model::{Component, Discovery};
+use bytes::Bytes;
 pub use error::*;
 pub use options::*;
 use rand::{distributions::Alphanumeric, Rng};
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, TlsConfiguration, Transport};
 use std::future::Future;
 use std::time::Duration;
-use tokio::select;
 
 fn random_client_id() -> String {
     rand::thread_rng()
@@ -33,6 +33,11 @@ pub trait ConnectorHandler {
 
     fn connected(&mut self, state: bool) -> impl Future<Output = Result<(), Self::Error>>;
     fn restarted(&mut self) -> impl Future<Output = Result<(), Self::Error>>;
+    fn message(
+        &mut self,
+        topic: String,
+        payload: Bytes,
+    ) -> impl Future<Output = Result<(), Self::Error>>;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -50,7 +55,9 @@ pub struct DeviceId {
     pub node_id: Option<String>,
 
     pub config_topic: String,
-    pub state_topic: String,
+
+    pub state_topic: Option<String>,
+    pub command_topic: Option<String>,
 }
 
 impl DeviceId {
@@ -70,7 +77,10 @@ impl DeviceId {
         );
 
         let config_topic = format!("{topic}/config");
-        let state_topic = format!("{topic}/state");
+
+        // FIXME: depends on the support of the devices
+        let state_topic = Some(format!("{topic}/state"));
+        let command_topic = Some(format!("{topic}/set"));
 
         Self {
             id,
@@ -78,6 +88,7 @@ impl DeviceId {
             node_id,
             config_topic,
             state_topic,
+            command_topic,
         }
     }
 }
@@ -94,24 +105,33 @@ impl Client {
         id: &DeviceId,
         payload: impl Into<Vec<u8>>,
     ) -> Result<(), ClientError> {
-        Ok(self
-            .client
-            .publish(
-                format!("{}/{}", self.base_topic, id.state_topic),
-                QoS::AtLeastOnce,
-                false,
-                payload,
-            )
-            .await?)
+        if let Some(topic) = &id.state_topic {
+            self.client
+                .publish(
+                    format!("{}/{topic}", self.base_topic),
+                    QoS::AtLeastOnce,
+                    false,
+                    payload.into(),
+                )
+                .await?;
+        }
+        Ok(())
     }
 
     pub async fn announce(
         &self,
         id: &DeviceId,
         device_class: Option<impl AsRef<str>>,
-        device: crate::model::Device,
+        device: &crate::model::Device,
     ) -> Result<(), ClientError> {
-        let state_topic = format!("{}/{}", self.base_topic, id.state_topic);
+        let state_topic = id
+            .state_topic
+            .as_ref()
+            .map(|topic| format!("{}/{topic}", self.base_topic));
+        let command_topic = id
+            .command_topic
+            .as_ref()
+            .map(|topic| format!("{}/{topic}", self.base_topic));
 
         self.client
             .publish(
@@ -120,13 +140,26 @@ impl Client {
                 false,
                 serde_json::to_vec(&Discovery {
                     name: None,
-                    state_topic: state_topic.clone(),
+                    state_topic,
+                    command_topic,
                     unique_id: Some(id.id.to_string()),
                     device,
                     device_class: device_class.map(|s| s.as_ref().to_string()),
                 })?,
             )
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn subscribe(&self, id: &DeviceId, qos: QoS) -> Result<(), ClientError> {
+        if let Some(topic) = &id.command_topic {
+            self.client
+                .subscribe(format!("{}/{topic}", self.base_topic), qos)
+                .await?;
+        }
+
+        // FIXME: we should not allow subscribe on a non-command type device
 
         Ok(())
     }
@@ -174,67 +207,62 @@ where
             client: client.clone(),
         });
 
-        let runner = async {
-            loop {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-            }
-        };
+        let status_topic = format!("{base}/status");
 
-        let connection = async {
-            loop {
-                match eventloop.poll().await {
-                    Ok(Event::Incoming(Incoming::ConnAck(_))) => {
-                        log::info!("Connected");
-                        if let Err(err) =
-                            client.try_subscribe(format!("{base}/status"), QoS::AtLeastOnce)
-                        {
-                            log::warn!("Failed to subscribe to status the topic: {err}");
-                            if let Err(err) = client.try_disconnect() {
-                                panic!("Failed to disconnect after error: {err}");
-                            }
+        loop {
+            match eventloop.poll().await {
+                Ok(Event::Incoming(Incoming::ConnAck(_))) => {
+                    log::info!("Connected");
+                    if let Err(err) = client.try_subscribe(&status_topic, QoS::AtLeastOnce) {
+                        log::warn!("Failed to subscribe to status the topic: {err}");
+                        if let Err(err) = client.try_disconnect() {
+                            panic!("Failed to disconnect after error: {err}");
                         }
-                        handler.connected(true).await.map_err(Error::Handler)?;
                     }
-                    Ok(Event::Incoming(Incoming::Disconnect)) => {
-                        log::info!("Disconnected");
-                        handler.connected(false).await.map_err(Error::Handler)?;
-                    }
-                    Ok(Event::Incoming(Incoming::Publish(publish))) => {
-                        log::info!("Received: {publish:?}");
-                        if let Some(topic) = publish.topic.strip_prefix(&base) {
-                            match topic {
-                                "/status" => {
-                                    let payload = String::from_utf8_lossy(&publish.payload);
-                                    log::info!("Payload: {}", payload);
-                                    if payload == "online" {
-                                        handler.restarted().await.map_err(Error::Handler)?;
+                    handler.connected(true).await.map_err(Error::Handler)?;
+                }
+                Ok(Event::Incoming(Incoming::Disconnect)) => {
+                    log::info!("Disconnected");
+                    handler.connected(false).await.map_err(Error::Handler)?;
+                }
+                Ok(Event::Incoming(Incoming::Publish(publish))) => {
+                    log::info!("Received: {publish:?}");
+                    if publish.topic == status_topic {
+                        let payload = String::from_utf8_lossy(&publish.payload);
+                        log::info!("Payload: {}", payload);
+                        if payload == "online" {
+                            handler.restarted().await.map_err(Error::Handler)?;
+                        }
+                    } else {
+                        let topic = publish.topic;
+                        let payload = publish.payload;
+                        log::info!("Message published: {topic} (len: {})", payload.len());
+
+                        // FIXME: there's actually no requirement to have the device topics aligned with the base prefix
+                        if let Some(topic) = topic.strip_prefix(&format!("{base}/")) {
+                            if let Err(err) = handler.message(topic.to_string(), payload).await {
+                                if publish.qos != QoS::AtMostOnce {
+                                    // we can't ignore this
+                                    log::warn!("Failed to process message: {err}");
+                                    if let Err(err) = client.try_disconnect() {
+                                        panic!("Failed to disconnect after error: {err}");
                                     }
-                                }
-                                _ => {
-                                    log::info!("Skipping unknown topic: {base}{topic}");
+                                } else {
+                                    log::info!(
+                                        "Failed to process message: {err} … ignoring due to QoS"
+                                    );
                                 }
                             }
                         }
-                    }
-                    Ok(_) => {}
-                    Err(err) => {
-                        log::warn!("Connection failed: {err}");
-                        handler.connected(false).await.map_err(Error::Handler)?;
-                        tokio::time::sleep(Duration::from_secs(5)).await;
                     }
                 }
+                Ok(_) => {}
+                Err(err) => {
+                    log::warn!("Connection failed: {err}");
+                    handler.connected(false).await.map_err(Error::Handler)?;
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
             }
-            #[allow(unreachable_code)]
-            Ok(())
-        };
-
-        select! {
-            _ = runner => {},
-            ret = connection => { ret? },
         }
-
-        log::info!("MQTT runner exited");
-
-        Ok(())
     }
 }

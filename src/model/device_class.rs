@@ -29,3 +29,18 @@ impl AsRef<str> for BinarySensorClass {
         }
     }
 }
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum SwitchClass {
+    Outlet,
+    Switch,
+}
+
+impl AsRef<str> for SwitchClass {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Outlet => "outlet",
+            Self::Switch => "switch",
+        }
+    }
+}

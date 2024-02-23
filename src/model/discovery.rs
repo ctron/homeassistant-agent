@@ -1,7 +1,7 @@
 use crate::model::Device;
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Discovery {
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct Discovery<'a> {
     /// The name of the application that is the origin the discovered MQTT item. This option is required.
     #[serde(default)]
     pub name: Option<String>,
@@ -9,11 +9,12 @@ pub struct Discovery {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unique_id: Option<String>,
 
-    pub device: Device,
+    pub device: &'a Device,
 
     pub device_class: Option<String>,
 
-    pub state_topic: String,
+    pub state_topic: Option<String>,
+    pub command_topic: Option<String>,
 }
 
 #[cfg(test)]
@@ -27,7 +28,7 @@ mod test {
             serde_json::to_value(Discovery {
                 name: None,
                 unique_id: None,
-                device: Device {
+                device: &Device {
                     identifiers: vec!["test-id1".into()],
                     name: "Test Device 1".to_string(),
                     base_topic: None,
@@ -35,7 +36,8 @@ mod test {
                     support_url: None,
                 },
                 device_class: Some("motion".to_string()),
-                state_topic: "some/topic".to_string(),
+                state_topic: Some("some/topic".to_string()),
+                command_topic: None,
             })
             .unwrap(),
             json!({

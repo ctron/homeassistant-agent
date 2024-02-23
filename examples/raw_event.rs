@@ -16,6 +16,7 @@ struct Cli {
 pub enum Event {
     Connection { state: bool },
     Restarted,
+    Message { topic: String, payload: Vec<u8> },
 }
 
 fn event_based<F, Fut, E>(connection: Client, handler: F) -> impl ConnectorHandler
@@ -44,6 +45,14 @@ impl ConnectorHandler for EventBasedHandler {
 
     async fn restarted(&mut self) -> Result<(), Self::Error> {
         self.tx.send(Event::Restarted).await
+    }
+
+    fn message(
+        &mut self,
+        topic: String,
+        payload: Vec<u8>,
+    ) -> impl Future<Output = Result<(), Self::Error>> {
+        self.tx.send(Event::Message { topic, payload })
     }
 }
 

@@ -4,6 +4,7 @@ use std::fmt::Formatter;
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Component {
     Button(Option<ButtonClass>),
+    Switch(Option<SwitchClass>),
     BinarySensor(Option<BinarySensorClass>),
     Sensor,
 }
@@ -14,6 +15,7 @@ impl AsRef<str> for Component {
             Self::BinarySensor(_) => "binary_sensor",
             Self::Button(_) => "button",
             Self::Sensor => "sensor",
+            Self::Switch(_) => "switch",
         }
     }
 }

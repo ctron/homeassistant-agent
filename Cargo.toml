@@ -13,6 +13,7 @@ keywords = ["homeassistant", "smarthome", "iot", "mqtt"]
 readme = "README.md"
 
 [dependencies]
+bytes = "1"
 futures-util = "0.3"
 log = "0.4"
 rumqttc = { version = "0.23", default-features = false, features = ["use-native-tls"] }
