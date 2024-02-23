@@ -1,5 +1,6 @@
 //! A raw connector example
 
+use bytes::Bytes;
 use clap::Parser;
 use homeassistant_agent::connector::{Client, Connector, ConnectorHandler, ConnectorOptions};
 use std::convert::Infallible;
@@ -16,7 +17,7 @@ struct Cli {
 pub enum Event {
     Connection { state: bool },
     Restarted,
-    Message { topic: String, payload: Vec<u8> },
+    Message { topic: String, payload: Bytes },
 }
 
 fn event_based<F, Fut, E>(connection: Client, handler: F) -> impl ConnectorHandler
@@ -50,7 +51,7 @@ impl ConnectorHandler for EventBasedHandler {
     fn message(
         &mut self,
         topic: String,
-        payload: Vec<u8>,
+        payload: Bytes,
     ) -> impl Future<Output = Result<(), Self::Error>> {
         self.tx.send(Event::Message { topic, payload })
     }

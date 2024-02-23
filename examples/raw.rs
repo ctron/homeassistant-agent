@@ -65,7 +65,7 @@ impl CustomDevice {
                                 (true, Some(runner)) => Some(runner),
                                 (false, Some(runner)) => {
                                     // terminate
-                                    runner.send(());
+                                    let _ = runner.send(());
                                     None
                                 }
                                 (true, None) => Some({
@@ -111,10 +111,7 @@ impl CustomDevice {
     }
 
     async fn subscribe(&self) -> Result<(), ClientError> {
-        Ok(self
-            .client
-            .subscribe(&self.switch, QoS::AtLeastOnce)
-            .await?)
+        self.client.subscribe(&self.switch, QoS::AtLeastOnce).await
     }
 
     async fn announce(&self) -> Result<(), ClientError> {
