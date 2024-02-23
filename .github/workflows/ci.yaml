@@ -46,7 +46,7 @@ jobs:
           key: linux-clippy-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Clippy
-        run: cargo clippy --all-targets --tests --bins --workspace --examples -- -D warnings
+        run: cargo clippy --all-targets --tests --bins --workspace --examples --all-features -- -D warnings
 
   check:
 
