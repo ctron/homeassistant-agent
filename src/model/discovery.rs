@@ -11,14 +11,9 @@ pub struct Discovery {
 
     pub device: Device,
 
-    pub device_class: DeviceClass,
+    pub device_class: Option<String>,
 
     pub state_topic: String,
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
-pub enum DeviceClass {
-    Motion,
 }
 
 #[cfg(test)]
@@ -39,7 +34,7 @@ mod test {
                     sw_version: None,
                     support_url: None,
                 },
-                device_class: DeviceClass::Motion,
+                device_class: Some("motion".to_string()),
                 state_topic: "some/topic".to_string(),
             })
             .unwrap(),

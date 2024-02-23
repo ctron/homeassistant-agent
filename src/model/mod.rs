@@ -1,5 +1,9 @@
+mod component;
+mod device_class;
 mod discovery;
 
+pub use component::*;
+pub use device_class::*;
 pub use discovery::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

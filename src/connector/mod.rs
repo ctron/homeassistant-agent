@@ -2,12 +2,11 @@ mod error;
 mod options;
 
 use crate::connector::Error;
-use crate::model::{DeviceClass, Discovery};
+use crate::model::{Component, Discovery};
 pub use error::*;
 pub use options::*;
 use rand::{distributions::Alphanumeric, Rng};
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, TlsConfiguration, Transport};
-use std::fmt::Formatter;
 use std::future::Future;
 use std::time::Duration;
 use tokio::select;
@@ -36,21 +35,6 @@ pub trait ConnectorHandler {
     fn restarted(&mut self) -> impl Future<Output = Result<(), Self::Error>>;
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum Component {
-    BinarySensor,
-    Sensor,
-}
-
-impl std::fmt::Display for Component {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::BinarySensor => f.write_str("binary_sensor"),
-            Self::Sensor => f.write_str("sensor"),
-        }
-    }
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
     #[error("serialization failure")]
@@ -59,66 +43,92 @@ pub enum ClientError {
     Client(#[from] rumqttc::ClientError),
 }
 
-pub struct Device {
-    state_topic: String,
-    client: AsyncClient,
+#[derive(Clone)]
+pub struct DeviceId {
+    pub id: String,
+    pub component: Component,
+    pub node_id: Option<String>,
+
+    pub config_topic: String,
+    pub state_topic: String,
 }
 
-impl Device {
-    pub async fn update_state<P>(&self, payload: P) -> Result<(), ClientError>
-    where
-        P: Into<Vec<u8>>,
-    {
-        self.client
-            .publish(&self.state_topic, QoS::AtLeastOnce, false, payload)
-            .await?;
+impl DeviceId {
+    pub fn new(
+        id: impl Into<String>,
+        component: Component,
+        node_id: impl Into<Option<String>>,
+    ) -> Self {
+        let id = id.into();
+        let node_id = node_id.into();
 
-        Ok(())
+        let topic = format!(
+            "{component}/{node_id}{node_id_slash}{object_id}",
+            object_id = id,
+            node_id_slash = if node_id.is_some() { "/" } else { "" },
+            node_id = node_id.as_deref().unwrap_or(""),
+        );
+
+        let config_topic = format!("{topic}/config");
+        let state_topic = format!("{topic}/state");
+
+        Self {
+            id,
+            component,
+            node_id,
+            config_topic,
+            state_topic,
+        }
     }
 }
 
+#[derive(Clone)]
 pub struct Client {
-    discovery_topic: String,
+    base_topic: String,
     client: AsyncClient,
 }
 
 impl Client {
+    pub async fn update_state(
+        &self,
+        id: &DeviceId,
+        payload: impl Into<Vec<u8>>,
+    ) -> Result<(), ClientError> {
+        Ok(self
+            .client
+            .publish(
+                format!("{}/{}", self.base_topic, id.state_topic),
+                QoS::AtLeastOnce,
+                false,
+                payload,
+            )
+            .await?)
+    }
+
     pub async fn announce(
         &self,
-        component: Component,
-        device_class: DeviceClass,
-        object_id: &str,
-        node_id: Option<&str>,
+        id: &DeviceId,
+        device_class: Option<impl AsRef<str>>,
         device: crate::model::Device,
-    ) -> Result<Device, ClientError> {
-        let base_topic = format!(
-            "{base}/{component}/{node_id}{node_id_slash}{object_id}",
-            base = self.discovery_topic,
-            node_id = node_id.unwrap_or(""),
-            node_id_slash = if node_id.is_some() { "/" } else { "" }
-        );
-
-        let state_topic = format!("{base_topic}/state");
+    ) -> Result<(), ClientError> {
+        let state_topic = format!("{}/{}", self.base_topic, id.state_topic);
 
         self.client
             .publish(
-                format!("{base_topic}/config"),
+                format!("{}/{}", self.base_topic, id.config_topic),
                 QoS::AtLeastOnce,
                 false,
                 serde_json::to_vec(&Discovery {
                     name: None,
                     state_topic: state_topic.clone(),
-                    unique_id: Some(object_id.to_string()),
+                    unique_id: Some(id.id.to_string()),
                     device,
-                    device_class,
+                    device_class: device_class.map(|s| s.as_ref().to_string()),
                 })?,
             )
             .await?;
 
-        Ok(Device {
-            client: self.client.clone(),
-            state_topic,
-        })
+        Ok(())
     }
 }
 
@@ -160,7 +170,7 @@ where
         let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
 
         let mut handler = (self.handler)(Client {
-            discovery_topic: base.clone(),
+            base_topic: base.clone(),
             client: client.clone(),
         });
 

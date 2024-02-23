@@ -2,10 +2,13 @@
 
 use clap::Parser;
 use homeassistant_agent::connector::{
-    Client, ClientError, Component, Connector, ConnectorHandler, ConnectorOptions,
+    Client, ClientError, Connector, ConnectorHandler, ConnectorOptions, DeviceId,
 };
-use homeassistant_agent::model::{Device, DeviceClass};
+use homeassistant_agent::model::{BinarySensorClass, Component, Device};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::select;
 use tokio::time::MissedTickBehavior;
 
 #[derive(Debug, clap::Parser)]
@@ -15,22 +18,78 @@ struct Cli {
 }
 
 struct CustomDevice {
-    connection: Client,
+    client: Client,
+    motion: DeviceId,
 }
 
 impl CustomDevice {
-    pub fn new(connection: Client) -> Self {
-        Self { connection }
+    pub fn new(client: Client) -> Self {
+        let motion = DeviceId::new(
+            "test-id10-motion",
+            Component::BinarySensor(Some(BinarySensorClass::Motion)),
+            None,
+        );
+        let switch = DeviceId::new("test-id10-switch", Component::Button(None), None);
+
+        let state = Arc::new(AtomicBool::new(true));
+
+        {
+            let id = switch.clone();
+            let client = client.clone();
+            let state = state.clone();
+
+            tokio::spawn(async move {
+                let command = client.subscribe(&id);
+
+                let _ = client
+                    .update_state(
+                        &id,
+                        if state.load(Ordering::SeqCst) {
+                            "ON"
+                        } else {
+                            "OFF"
+                        },
+                    )
+                    .await;
+
+                loop {
+                    select! {
+                        cmd = command.recv() => {
+                            let state = !state.fetch_xor(true, Ordering::SeqCst);
+                            let _ = client.update_state(&id, if state { "ON"} else {"OFF"}).await;
+                        }
+                    }
+                }
+            });
+        }
+
+        {
+            let id = motion.clone();
+            let client = client.clone();
+            tokio::spawn(async move {
+                let _ = client.update_state(&id, "ON").await;
+
+                let mut interval = tokio::time::interval(Duration::from_secs(5));
+                interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
+                let mut state = false;
+                loop {
+                    interval.tick().await;
+                    let _ = client
+                        .update_state(&id, if state { "ON" } else { "OFF" })
+                        .await;
+                    state = !state;
+                }
+            });
+        }
+
+        Self { motion, client }
     }
 
     async fn announce(&self) -> Result<(), ClientError> {
-        let sensor = self
-            .connection
+        self.client
             .announce(
-                Component::BinarySensor,
-                DeviceClass::Motion,
-                "test-id1",
-                None,
+                &self.motion,
+                BinarySensorClass::Motion.into(),
                 Device {
                     name: "Test Device 1".to_string(),
                     base_topic: None,
@@ -40,20 +99,6 @@ impl CustomDevice {
                 },
             )
             .await?;
-
-        sensor.update_state("ON").await?;
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(5));
-            interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
-            let mut state = false;
-            loop {
-                interval.tick().await;
-                let _ = sensor.update_state(if state { "ON" } else { "OFF" }).await;
-                state = !state;
-            }
-        });
-
         Ok(())
     }
 }
