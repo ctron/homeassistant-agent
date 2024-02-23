@@ -14,7 +14,7 @@ on:
 
 jobs:
 
-  fmt:
+  lint:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,10 @@ jobs:
         run: |
           cargo fmt --check
 
-  check-all:
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+
+  clippy:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -40,11 +43,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: linux-cargo-all-${{ hashFiles('**/Cargo.toml') }}
-
-      - name: Check (all features)
-        run: |
-          cargo check
+          key: linux-clippy-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Clippy
         run: cargo clippy --all-targets --tests --bins --workspace --examples -- -D warnings
