@@ -4,8 +4,7 @@ use clap::Parser;
 use homeassistant_agent::connector::{
     Client, ClientError, Component, Connector, ConnectorHandler, ConnectorOptions,
 };
-use homeassistant_agent::model::{Device, DeviceClass, Discovery};
-use serde_json::json;
+use homeassistant_agent::model::{Device, DeviceClass};
 use std::time::Duration;
 use tokio::time::MissedTickBehavior;
 
@@ -85,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
 
     log::info!("Starting up example");
 
-    let connector = Connector::new(cli.connector, |connection| CustomDevice::new(connection));
+    let connector = Connector::new(cli.connector, CustomDevice::new);
     connector.run().await?;
 
     log::info!("Exiting");

@@ -1,6 +1,3 @@
-use humantime_serde::re::humantime;
-use std::ffi::OsStr;
-use std::str::FromStr;
 use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -56,8 +53,9 @@ impl clap::builder::TypedValueParser for DurationValueParser {
         &self,
         cmd: &clap::Command,
         _arg: Option<&clap::Arg>,
-        value: &OsStr,
+        value: &std::ffi::OsStr,
     ) -> Result<Self::Value, clap::Error> {
+        use std::str::FromStr;
         Ok(humantime::Duration::from_str(&value.to_string_lossy())
             .map_err(|_err| clap::Error::new(clap::error::ErrorKind::Format).with_cmd(cmd))?
             .into())

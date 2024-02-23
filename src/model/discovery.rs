@@ -29,7 +29,7 @@ mod test {
     #[test]
     fn test_serde() {
         assert_eq!(
-            serde_json::to_value(&Discovery {
+            serde_json::to_value(Discovery {
                 name: None,
                 unique_id: None,
                 device: Device {
@@ -40,6 +40,7 @@ mod test {
                     support_url: None,
                 },
                 device_class: DeviceClass::Motion,
+                state_topic: "some/topic".to_string(),
             })
             .unwrap(),
             json!({
@@ -51,6 +52,7 @@ mod test {
                     ],
                     "name": "Test Device 1",
                 },
+                "state_topic": "some/topic"
             })
         )
     }

@@ -7,7 +7,6 @@ pub use error::*;
 pub use options::*;
 use rand::{distributions::Alphanumeric, Rng};
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, TlsConfiguration, Transport};
-use serde::Serialize;
 use std::fmt::Formatter;
 use std::future::Future;
 use std::time::Duration;
@@ -146,7 +145,7 @@ where
             .unwrap_or(if self.options.disable_tls { 1883 } else { 8883 });
 
         let mut mqttoptions = MqttOptions::new(client_id, self.options.host, port);
-        mqttoptions.set_keep_alive(self.options.keep_alive.into());
+        mqttoptions.set_keep_alive(self.options.keep_alive);
 
         if !self.options.disable_tls {
             mqttoptions.set_transport(Transport::Tls(TlsConfiguration::Native));
