@@ -3,6 +3,7 @@ use crate::model::Device;
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct Discovery<'a> {
     /// The name of the application that is the origin the discovered MQTT item. This option is required.
+    // Don't skip serde if it's empty, as it has to be null then
     #[serde(default)]
     pub name: Option<String>,
 
@@ -11,9 +12,12 @@ pub struct Discovery<'a> {
 
     pub device: &'a Device,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_class: Option<String>,
 
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state_topic: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub command_topic: Option<String>,
 }
 
