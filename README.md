@@ -9,3 +9,11 @@ This crates helps in creating devices for Home Assistant MQTT integration.
 
 > [!IMPORTANT]  
 > This is an early experiment.
+
+## ToDos
+
+These are just some high-level notes:
+
+* [ ] More type-safety: A switch needs a command topic, a binary sensor must send binary data
+* [ ] Device topics must be more flexible, the command base is not a requirement
+* [ ] Higher level abstractions for creating/managing sensors/devices
