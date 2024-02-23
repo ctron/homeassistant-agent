@@ -332,7 +332,7 @@ checksum = "bd5256b483761cd23699d0da46cc6fd2ee3be420bbe6d020ae4a091e70b7e9fd"
 
 [[package]]
 name = "homeassistant-agent"
-version = "0.1.0"
+version = "0.2.0-alpha.1"
 dependencies = [
  "anyhow",
  "bytes",
