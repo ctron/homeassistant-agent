@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ConnectorOptions",
+  "type": "object",
+  "required": [
+    "host"
+  ],
+  "properties": {
+    "client_id": {
+      "description": "The MQTT client id, defaults to a random ID",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "disable_tls": {
+      "description": "TLS is used by default, you can disable it here.",
+      "type": "boolean"
+    },
+    "host": {
+      "description": "The MQTT's servers/brokers hostname #[cfg_attr(feature = \"clap\", arg(long, env))]",
+      "type": "string"
+    },
+    "keep_alive": {
+      "description": "A duration in the humantime format. For example: '30s' for 30 seconds. '5m' for 5 minutes.",
+      "default": "5s",
+      "examples": [
+        "30s",
+        "1m"
+      ],
+      "type": "string"
+    },
+    "password": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "port": {
+      "description": "The MQTT's server/brokers port, defaults to 1883 without TLS and 8883 with TLS",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint16",
+      "minimum": 0.0
+    },
+    "topic_base": {
+      "description": "Base topic, defaults to `homeassistant`",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "username": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

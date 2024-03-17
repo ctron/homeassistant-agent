@@ -2,6 +2,7 @@ use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ConnectorOptions {
     /// The MQTT client id, defaults to a random ID
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -31,6 +32,7 @@ pub struct ConnectorOptions {
     #[serde(default = "default_keep_alive", skip_serializing_if = "is_default")]
     #[serde(with = "humantime_serde")]
     #[cfg_attr(feature = "clap", arg(long, env, value_parser = DurationValueParser, default_value = "5s"))]
+    #[cfg_attr(feature = "schemars", schemars(schema_with = "humantime_duration"))]
     pub keep_alive: Duration,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -39,6 +41,26 @@ pub struct ConnectorOptions {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "clap", arg(long, env))]
     pub password: Option<String>,
+}
+
+#[cfg(feature = "schemars")]
+fn humantime_duration(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    use schemars::schema::*;
+    use schemars::JsonSchema;
+    use serde_json::json;
+
+    let mut schema: SchemaObject = <String>::json_schema(gen).into();
+    schema.metadata = Some(Box::new(Metadata {
+        id: None,
+        title: None,
+        description: Some(r#"A duration in the humantime format. For example: '30s' for 30 seconds. '5m' for 5 minutes."#.to_string()),
+        default: None,
+        deprecated: false,
+        read_only: false,
+        write_only: false,
+        examples: vec![json!("30s"), json!("1m")],
+    }));
+    schema.into()
 }
 
 #[cfg(feature = "clap")]
