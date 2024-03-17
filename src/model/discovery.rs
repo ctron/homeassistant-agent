@@ -1,7 +1,7 @@
 use crate::model::Device;
 
 /// Discovery message
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
 pub struct Discovery {
     /// The name of the application that is the origin the discovered MQTT item. This option is required.
     // Don't skip serde if it's empty, as it has to be null then
@@ -18,10 +18,26 @@ pub struct Discovery {
     #[serde(default)]
     pub device_class: Option<String>,
 
+    #[serde(default)]
+    pub state_class: Option<StateClass>,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state_topic: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub command_topic: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit_of_measurement: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value_template: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub enum StateClass {
+    Measurement,
+    Total,
+    TotalIncreasing,
 }
 
 #[cfg(test)]
@@ -33,8 +49,6 @@ mod test {
     fn test_serde() {
         assert_eq!(
             serde_json::to_value(Discovery {
-                name: None,
-                unique_id: None,
                 device: Some(Device {
                     identifiers: vec!["test-id1".into()],
                     name: Some("Test Device 1".to_string()),
@@ -44,7 +58,7 @@ mod test {
                 }),
                 device_class: Some("motion".to_string()),
                 state_topic: Some("some/topic".to_string()),
-                command_topic: None,
+                ..Default::default()
             })
             .unwrap(),
             json!({

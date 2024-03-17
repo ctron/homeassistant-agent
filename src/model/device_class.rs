@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+// for values see: https://github.com/home-assistant/core/blob/dev/homeassistant/components/number/const.py
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ButtonClass {
     Identify,
@@ -43,4 +45,64 @@ impl AsRef<str> for SwitchClass {
             Self::Switch => "switch",
         }
     }
+}
+
+#[derive(
+    Copy, Clone, Eq, PartialEq, Debug, strum::AsRefStr, strum::EnumString, strum::VariantNames,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum SensorClass {
+    ApparentPower,
+    Aqi,
+    AtmosphericPressure,
+    Battery,
+    #[strum(to_string = "carbon_dioxide")]
+    Co2,
+    #[strum(to_string = "carbon_monoxide")]
+    Co,
+    Current,
+    DataRate,
+    DataSize,
+    Date,
+    Distance,
+    Duration,
+    Energy,
+    EnergyStorage,
+    Enum,
+    Frequency,
+    Gas,
+    Humidity,
+    Illuminance,
+    Irradiance,
+    Moisture,
+    Monetary,
+    NitrogenDioxide,
+    NitrogenMonoxide,
+    NitrousOxide,
+    Ozone,
+    Ph,
+    Pm1,
+    Pm25,
+    Pm10,
+    Power,
+    PowerFactor,
+    Precipitation,
+    PrecipitationDensity,
+    Pressure,
+    ReactivePower,
+    SignalStrength,
+    SoundPressure,
+    Speed,
+    SulphurDioxide,
+    Temperature,
+    Timestamp,
+    VolatileOrganicCompounds,
+    VolatileOrganicCompoundsParst,
+    Voltage,
+    Volume,
+    VolumeFlowRate,
+    VolumeStorage,
+    Water,
+    Weight,
+    WindSpeed,
 }

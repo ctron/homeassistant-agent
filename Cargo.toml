@@ -24,6 +24,7 @@ tokio = "1"
 humantime = "2"
 humantime-serde = "1"
 rand = "0.8.5"
+strum = { version = "0.26", features = ["derive"] }
 
 schemars = { version = "0.8", optional = true }
 clap = { version = "4.5", optional = true, features = ["derive", "env"] }

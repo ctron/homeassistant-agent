@@ -77,8 +77,10 @@ impl Client {
         log::info!("Update state on {topic}");
 
         self.client
-            .publish(topic, QoS::AtLeastOnce, false, payload.into())
-            .await?;
+            .try_publish(topic, QoS::AtLeastOnce, false, payload.into())
+            .inspect_err(|err| {
+                log::warn!("failed to publish state: {err}");
+            })?;
 
         Ok(())
     }
@@ -143,7 +145,7 @@ where
             mqttoptions.set_credentials(username, self.options.password.unwrap_or_default());
         }
 
-        let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+        let (client, mut eventloop) = AsyncClient::new(mqttoptions, 128);
 
         let mut handler = (self.handler)(Client {
             base_topic: base.clone(),
