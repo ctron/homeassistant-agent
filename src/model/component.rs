@@ -1,21 +1,20 @@
-use crate::model::*;
 use std::fmt::Formatter;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Component {
-    Button(Option<ButtonClass>),
-    Switch(Option<SwitchClass>),
-    BinarySensor(Option<BinarySensorClass>),
+    Button,
+    Switch,
+    BinarySensor,
     Sensor,
 }
 
 impl AsRef<str> for Component {
     fn as_ref(&self) -> &str {
         match self {
-            Self::BinarySensor(_) => "binary_sensor",
-            Self::Button(_) => "button",
+            Self::BinarySensor => "binary_sensor",
+            Self::Button => "button",
             Self::Sensor => "sensor",
-            Self::Switch(_) => "switch",
+            Self::Switch => "switch",
         }
     }
 }

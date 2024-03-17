@@ -6,12 +6,13 @@ pub use component::*;
 pub use device_class::*;
 pub use discovery::*;
 
+///
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Device {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identifiers: Vec<String>,
 
-    pub name: String,
+    pub name: Option<String>,
 
     #[serde(rename = "~")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
