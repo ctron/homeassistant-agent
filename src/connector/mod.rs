@@ -1,16 +1,17 @@
 mod error;
 mod options;
 
-use crate::connector::Error;
-use crate::model::{Component, Discovery};
-use bytes::Bytes;
 pub use error::*;
 pub use options::*;
+
+use crate::{
+    connector::Error,
+    model::{DeviceId, Discovery},
+};
+use bytes::Bytes;
 use rand::{distributions::Alphanumeric, Rng};
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, TlsConfiguration, Transport};
-use std::borrow::Cow;
-use std::future::Future;
-use std::time::Duration;
+use std::{future::Future, time::Duration};
 
 fn random_client_id() -> String {
     rand::thread_rng()
@@ -32,8 +33,19 @@ where
 pub trait ConnectorHandler {
     type Error: std::error::Error + Send + Sync;
 
+    /// called when the connection state changes.
+    ///
+    /// NOTE: it may be that this method gets called with the same state multiple times.
     fn connected(&mut self, state: bool) -> impl Future<Output = Result<(), Self::Error>>;
+
+    /// Called then a restart of Home Assistant has been detected
+    ///
+    /// When Home Assistant is restarted, it is necessary to re-announce devices.
     fn restarted(&mut self) -> impl Future<Output = Result<(), Self::Error>>;
+
+    /// A message received on a topic.
+    ///
+    /// You will only receive messages if you first subscribed to one or more topics.
     fn message(
         &mut self,
         topic: String,
@@ -47,45 +59,6 @@ pub enum ClientError {
     Serialization(#[from] serde_json::Error),
     #[error("client error")]
     Client(#[from] rumqttc::ClientError),
-}
-
-#[derive(Clone, Debug)]
-pub struct DeviceId {
-    pub id: Cow<'static, str>,
-    pub component: Component,
-    pub node_id: Option<Cow<'static, str>>,
-}
-
-impl DeviceId {
-    pub fn new(id: impl Into<Cow<'static, str>>, component: Component) -> Self {
-        Self {
-            id: id.into(),
-            component,
-            node_id: None,
-        }
-    }
-    pub fn with_node_id<I, C>(
-        id: impl Into<Cow<'static, str>>,
-        component: Component,
-        node_id: impl Into<Cow<'static, str>>,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            component,
-            node_id: Some(node_id.into()),
-        }
-    }
-
-    /// render the config topic
-    pub fn config_topic(&self) -> String {
-        format!(
-            "{component}/{node_id}{node_id_slash}{object_id}/config",
-            component = self.component,
-            object_id = self.id,
-            node_id_slash = if self.node_id.is_some() { "/" } else { "" },
-            node_id = self.node_id.as_deref().unwrap_or(""),
-        )
-    }
 }
 
 #[derive(Clone)]

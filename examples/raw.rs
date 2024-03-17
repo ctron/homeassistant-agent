@@ -1,16 +1,21 @@
-//! A raw connector example
+//! A more elaborate device example.
+//!
+//! The idea of this example is to research what common code exists, so that it can be added
+//! to the main crate.
 
 use bytes::Bytes;
 use clap::Parser;
-use homeassistant_agent::connector::{
-    Client, ClientError, Connector, ConnectorHandler, ConnectorOptions, DeviceId,
+use homeassistant_agent::{
+    connector::{Client, ClientError, Connector, ConnectorHandler, ConnectorOptions},
+    model::{BinarySensorClass, Component, Device, DeviceId, Discovery},
 };
-use homeassistant_agent::model::{BinarySensorClass, Component, Device, Discovery};
 use rumqttc::QoS;
 use std::time::Duration;
-use tokio::select;
-use tokio::sync::{mpsc, oneshot};
-use tokio::time::MissedTickBehavior;
+use tokio::{
+    select,
+    sync::{mpsc, oneshot},
+    time::MissedTickBehavior,
+};
 
 #[derive(Debug, clap::Parser)]
 struct Cli {
