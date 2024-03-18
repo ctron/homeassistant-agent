@@ -54,12 +54,11 @@ impl MotionDevice {
     ) -> Self {
         let state_topic = format!("{base}/{id}/state", id = id.id);
         let discovery = Discovery {
-            name: None,
             unique_id: Some(id.id.to_string()),
             device: Some(device),
             device_class: device_class.map(|c| c.as_ref().to_string()),
             state_topic: Some(state_topic.clone()),
-            command_topic: None,
+            ..Default::default()
         };
         Self {
             id,
@@ -83,12 +82,11 @@ impl SwitchDevice {
         let command_topic = format!("{base}/{id}/command", id = id.id);
         let state_topic = format!("{base}/{id}/state", id = id.id);
         let discovery = Discovery {
-            name: None,
             unique_id: Some(id.id.to_string()),
             device: Some(device),
-            device_class: None,
             command_topic: Some(command_topic.clone()),
             state_topic: Some(state_topic.clone()),
+            ..Default::default()
         };
         Self {
             id,
