@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ConnectorOptions {
