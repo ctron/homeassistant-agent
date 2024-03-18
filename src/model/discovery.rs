@@ -18,7 +18,7 @@ pub struct Discovery {
     #[serde(default)]
     pub device_class: Option<String>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state_class: Option<StateClass>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
