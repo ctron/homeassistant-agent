@@ -1,5 +1,7 @@
 use crate::model::Device;
 
+// also see: https://developers.home-assistant.io/docs/core/entity/
+
 /// Discovery message
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -32,6 +34,9 @@ pub struct Discovery {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value_template: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled_by_default: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
