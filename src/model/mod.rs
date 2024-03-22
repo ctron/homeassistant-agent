@@ -8,12 +8,13 @@ pub use device_class::*;
 pub use discovery::*;
 pub use id::*;
 
-///
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Device {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identifiers: Vec<String>,
 
+    #[serde(default)]
     pub name: Option<String>,
 
     #[serde(rename = "~")]

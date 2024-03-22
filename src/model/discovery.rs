@@ -1,7 +1,8 @@
 use crate::model::Device;
 
 /// Discovery message
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Discovery {
     /// The name of the application that is the origin the discovered MQTT item. This option is required.
     // Don't skip serde if it's empty, as it has to be null then
@@ -33,7 +34,8 @@ pub struct Discovery {
     pub value_template: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum StateClass {
     Measurement,
     Total,
