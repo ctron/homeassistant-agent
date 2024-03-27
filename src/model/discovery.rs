@@ -1,4 +1,4 @@
-use crate::model::Device;
+use crate::{model::Device, utils::is_default};
 
 // also see: https://developers.home-assistant.io/docs/core/entity/
 
@@ -25,9 +25,13 @@ pub struct Discovery {
     pub state_class: Option<StateClass>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub state_topic: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub command_topic: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_template: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_topic: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit_of_measurement: Option<String>,
@@ -37,6 +41,48 @@ pub struct Discovery {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled_by_default: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub availability_mode: AvailabilityMode,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub availability: Vec<Availability>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct Availability {
+    pub topic: String,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload_available: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload_not_available: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value_template: Option<String>,
+}
+
+impl Availability {
+    pub fn new(topic: impl Into<String>) -> Self {
+        Self {
+            topic: topic.into(),
+            payload_available: None,
+            payload_not_available: None,
+            value_template: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum AvailabilityMode {
+    All,
+    Any,
+    #[default]
+    Latest,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

@@ -1,3 +1,4 @@
+use crate::utils::is_default;
 use std::time::Duration;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -87,10 +88,6 @@ impl clap::builder::TypedValueParser for DurationValueParser {
 
 fn default_keep_alive() -> Duration {
     Duration::from_secs(5)
-}
-
-fn is_default<D: Default + Eq>(value: &D) -> bool {
-    value == &D::default()
 }
 
 pub struct ConnectionOptions {
