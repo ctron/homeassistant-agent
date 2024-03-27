@@ -73,6 +73,21 @@ impl Availability {
             value_template: None,
         }
     }
+
+    pub fn payload_available(mut self, payload: impl Into<String>) -> Self {
+        self.payload_available = Some(payload.into());
+        self
+    }
+
+    pub fn payload_not_available(mut self, payload: impl Into<String>) -> Self {
+        self.payload_not_available = Some(payload.into());
+        self
+    }
+
+    pub fn value_template(mut self, value_template: impl Into<String>) -> Self {
+        self.value_template = Some(value_template.into());
+        self
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]

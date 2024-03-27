@@ -1,16 +1,17 @@
+mod client;
 mod error;
 mod options;
 
+pub use client::*;
 pub use error::*;
 pub use options::*;
 
-use crate::{
-    connector::Error,
-    model::{DeviceId, Discovery},
-};
+use crate::connector::Error;
 use bytes::Bytes;
 use rand::{distributions::Alphanumeric, Rng};
-use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, TlsConfiguration, Transport};
+use rumqttc::{
+    AsyncClient, Event, Incoming, LastWill, MqttOptions, QoS, TlsConfiguration, Transport,
+};
 use std::{future::Future, time::Duration};
 
 fn random_client_id() -> String {
@@ -19,15 +20,6 @@ fn random_client_id() -> String {
         .take(23)
         .map(char::from)
         .collect()
-}
-
-pub struct Connector<F, H>
-where
-    F: FnOnce(Client) -> H,
-    H: ConnectorHandler,
-{
-    options: ConnectorOptions,
-    handler: F,
 }
 
 pub trait ConnectorHandler {
@@ -53,62 +45,28 @@ pub trait ConnectorHandler {
     ) -> impl Future<Output = Result<(), Self::Error>>;
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum ClientError {
-    #[error("serialization failure")]
-    Serialization(#[from] serde_json::Error),
-    #[error("client error")]
-    Client(#[from] rumqttc::ClientError),
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct AvailabilityOptions {
+    pub topic: String,
 }
 
-#[derive(Clone)]
-pub struct Client {
-    pub mqtt: AsyncClient,
-
-    base_topic: String,
+impl AvailabilityOptions {
+    pub fn new(topic: impl Into<String>) -> Self {
+        Self {
+            topic: topic.into(),
+        }
+    }
 }
 
-impl Client {
-    pub async fn update_state(
-        &self,
-        topic: impl Into<String>,
-        payload: impl Into<Vec<u8>>,
-    ) -> Result<(), ClientError> {
-        let topic = topic.into();
-        log::info!("Update state on {topic}");
-
-        self.mqtt
-            .try_publish(topic, QoS::AtLeastOnce, false, payload.into())
-            .inspect_err(|err| {
-                log::warn!("failed to publish state: {err}");
-            })?;
-
-        Ok(())
-    }
-
-    pub async fn announce(&self, id: &DeviceId, discovery: &Discovery) -> Result<(), ClientError> {
-        let topic = format!("{}/{}", self.base_topic, id.config_topic());
-        log::info!("announce {id} on {topic}: {discovery:?}", id = id.id);
-
-        self.mqtt
-            .publish(
-                topic,
-                QoS::AtLeastOnce,
-                false,
-                serde_json::to_vec(discovery)?,
-            )
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn subscribe(&self, topic: impl Into<String>, qos: QoS) -> Result<(), ClientError> {
-        let topic = topic.into();
-        log::info!("Subscribing to: {topic}");
-        self.mqtt.subscribe(topic, qos).await?;
-
-        Ok(())
-    }
+pub struct Connector<F, H>
+where
+    F: FnOnce(Client) -> H,
+    H: ConnectorHandler,
+{
+    options: ConnectorOptions,
+    handler: F,
+    availability: Option<AvailabilityOptions>,
 }
 
 impl<F, H> Connector<F, H>
@@ -117,7 +75,16 @@ where
     H: ConnectorHandler,
 {
     pub fn new(options: ConnectorOptions, handler: F) -> Self {
-        Self { options, handler }
+        Self {
+            options,
+            handler,
+            availability: None,
+        }
+    }
+
+    pub fn availability(mut self, availability: impl Into<AvailabilityOptions>) -> Self {
+        self.availability = Some(availability.into());
+        self
     }
 
     pub async fn run(self) -> Result<(), Error<H::Error>> {
@@ -146,6 +113,16 @@ where
             mqttoptions.set_credentials(username, self.options.password.unwrap_or_default());
         }
 
+        if let Some(availability) = &self.availability {
+            log::info!("Using availability topic on: {}", availability.topic);
+            mqttoptions.set_last_will(LastWill {
+                topic: availability.topic.clone(),
+                message: Bytes::from_static(b"offline"),
+                qos: QoS::AtLeastOnce,
+                retain: true,
+            });
+        }
+
         let (client, mut eventloop) = AsyncClient::new(mqttoptions, 128);
 
         let mut handler = (self.handler)(Client {
@@ -165,7 +142,22 @@ where
                             panic!("Failed to disconnect after error: {err}");
                         }
                     }
+
                     handler.connected(true).await.map_err(Error::Handler)?;
+
+                    if let Some(availability) = &self.availability {
+                        if let Err(err) = client.try_publish(
+                            &availability.topic,
+                            QoS::AtLeastOnce,
+                            true,
+                            b"online",
+                        ) {
+                            log::warn!("Failed to announce availability: {err}");
+                            if let Err(err) = client.try_disconnect() {
+                                panic!("Failed to disconnect after error: {err}");
+                            }
+                        }
+                    }
                 }
                 Ok(Event::Incoming(Incoming::Disconnect)) => {
                     log::info!("Disconnected");

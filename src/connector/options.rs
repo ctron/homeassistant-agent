@@ -89,18 +89,3 @@ impl clap::builder::TypedValueParser for DurationValueParser {
 fn default_keep_alive() -> Duration {
     Duration::from_secs(5)
 }
-
-pub struct ConnectionOptions {
-    pub host: String,
-    pub port: Option<u16>,
-    pub client_id: Option<String>,
-
-    pub username: Option<String>,
-    pub password: Option<String>,
-
-    pub topic_base: Option<String>,
-
-    pub disable_tls: bool,
-
-    pub keep_alive: Duration,
-}
