@@ -63,8 +63,9 @@ pub enum ClientError {
 
 #[derive(Clone)]
 pub struct Client {
+    pub mqtt: AsyncClient,
+
     base_topic: String,
-    client: AsyncClient,
 }
 
 impl Client {
@@ -76,7 +77,7 @@ impl Client {
         let topic = topic.into();
         log::info!("Update state on {topic}");
 
-        self.client
+        self.mqtt
             .try_publish(topic, QoS::AtLeastOnce, false, payload.into())
             .inspect_err(|err| {
                 log::warn!("failed to publish state: {err}");
@@ -89,7 +90,7 @@ impl Client {
         let topic = format!("{}/{}", self.base_topic, id.config_topic());
         log::info!("announce {id} on {topic}: {discovery:?}", id = id.id);
 
-        self.client
+        self.mqtt
             .publish(
                 topic,
                 QoS::AtLeastOnce,
@@ -104,7 +105,7 @@ impl Client {
     pub async fn subscribe(&self, topic: impl Into<String>, qos: QoS) -> Result<(), ClientError> {
         let topic = topic.into();
         log::info!("Subscribing to: {topic}");
-        self.client.subscribe(topic, qos).await?;
+        self.mqtt.subscribe(topic, qos).await?;
 
         Ok(())
     }
@@ -149,7 +150,7 @@ where
 
         let mut handler = (self.handler)(Client {
             base_topic: base.clone(),
-            client: client.clone(),
+            mqtt: client.clone(),
         });
 
         let status_topic = format!("{base}/status");
