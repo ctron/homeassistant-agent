@@ -5,10 +5,7 @@
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/tag/ctron/homeassistant-agent?sort=semver)](https://github.com/ctron/homeassistant-agent/releases)
 [![CI](https://github.com/ctron/homeassistant-agent/workflows/CI/badge.svg)](https://github.com/ctron/homeassistant-agent/actions?query=workflow%3A%22CI%22)
 
-This crates helps in creating devices for Home Assistant MQTT integration.
-
-> [!IMPORTANT]  
-> This is an early experiment.
+This crates helps in creating devices for Home Assistant's MQTT integration.
 
 ## ToDos
 
